@@ -54,6 +54,77 @@ router.post('/', protect, async (req, res) => {
   }
 });
 
+// Workout analytics must be defined before routes using dynamic :id
+router.get('/analytics/summary', protect, async (req, res) => {
+  try {
+    // Get all workouts with sets for the user
+    const workouts = await prisma.workout.findMany({
+      where: { userId: req.user.id },
+      include: {
+        workoutSets: true,
+      },
+      orderBy: { date: 'asc' },
+    });
+
+    // Calculate 1RM using Epley formula
+    const calculate1RM = (weight, reps) => {
+      return weight * (1 + 0.0333 * reps);
+    };
+
+    // Group sets by exercise and calculate best set
+    const exerciseData = {};
+    workouts.forEach((workout) => {
+      workout.workoutSets.forEach((set) => {
+        const exerciseName = set.exerciseName;
+        const oneRM = calculate1RM(set.weightKg, set.reps);
+
+        if (!exerciseData[exerciseName]) {
+          exerciseData[exerciseName] = {
+            bestSet: { weight: 0, reps: 0, date: null, oneRM: 0 },
+            volumeOverTime: [],
+            oneRMOverTime: [],
+          };
+        }
+
+        // Track best set by 1RM
+        if (oneRM > exerciseData[exerciseName].bestSet.oneRM) {
+          exerciseData[exerciseName].bestSet = {
+            weight: set.weightKg,
+            reps: set.reps,
+            date: workout.date,
+            oneRM,
+          };
+        }
+
+        // Track volume and 1RM over time
+        exerciseData[exerciseName].volumeOverTime.push({
+          date: workout.date,
+          volume: set.weightKg * set.reps,
+        });
+
+        exerciseData[exerciseName].oneRMOverTime.push({
+          date: workout.date,
+          oneRM,
+        });
+      });
+    });
+
+    // Get recent workouts
+    const recentWorkouts = workouts
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .slice(0, 5);
+
+    res.json({
+      exerciseData,
+      recentWorkouts,
+      totalWorkouts: workouts.length,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Get a single workout
 router.get('/:id', protect, async (req, res) => {
   try {
@@ -153,78 +224,6 @@ router.delete('/:id', protect, async (req, res) => {
     });
 
     res.json({ message: 'Workout removed' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Get workout analytics
-router.get('/analytics/summary', protect, async (req, res) => {
-  try {
-    // Get all workouts with sets for the user
-    const workouts = await prisma.workout.findMany({
-      where: { userId: req.user.id },
-      include: {
-        workoutSets: true,
-      },
-      orderBy: { date: 'asc' },
-    });
-
-    // Calculate 1RM using Epley formula
-    const calculate1RM = (weight, reps) => {
-      return weight * (1 + 0.0333 * reps);
-    };
-
-    // Group sets by exercise and calculate best set
-    const exerciseData = {};
-    workouts.forEach((workout) => {
-      workout.workoutSets.forEach((set) => {
-        const exerciseName = set.exerciseName;
-        const oneRM = calculate1RM(set.weightKg, set.reps);
-
-        if (!exerciseData[exerciseName]) {
-          exerciseData[exerciseName] = {
-            bestSet: { weight: 0, reps: 0, date: null, oneRM: 0 },
-            volumeOverTime: [],
-            oneRMOverTime: [],
-          };
-        }
-
-
-        // Track best set by 1RM
-        if (oneRM > exerciseData[exerciseName].bestSet.oneRM) {
-          exerciseData[exerciseName].bestSet = {
-            weight: set.weightKg,
-            reps: set.reps,
-            date: workout.date,
-            oneRM,
-          };
-        }
-
-        // Track volume and 1RM over time
-        exerciseData[exerciseName].volumeOverTime.push({
-          date: workout.date,
-          volume: set.weightKg * set.reps,
-        });
-
-        exerciseData[exerciseName].oneRMOverTime.push({
-          date: workout.date,
-          oneRM,
-        });
-      });
-    });
-
-    // Get recent workouts
-    const recentWorkouts = workouts
-      .sort((a, b) => new Date(b.date) - new Date(a.date))
-      .slice(0, 5);
-
-    res.json({
-      exerciseData,
-      recentWorkouts,
-      totalWorkouts: workouts.length,
-    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
