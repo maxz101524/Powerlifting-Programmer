@@ -114,6 +114,20 @@ export const AuthProvider = ({ children }) => {
   // Clear errors
   const clearErrors = () => setError(null);
 
+  // Update user profile
+  const updateUser = async (data) => {
+    try {
+      setError(null);
+      const res = await api.put('/auth/update', data);
+      setUser(res.data);
+      return { success: true };
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || 'Update failed';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -123,8 +137,9 @@ export const AuthProvider = ({ children }) => {
         error,
         register,
         login,
-        logout,
-        clearErrors,
+      logout,
+      updateUser,
+      clearErrors,
       }}
     >
       {!loading && children}

@@ -180,13 +180,15 @@ const ExerciseRow = ({ exercise, index, onUpdate, onRemove }) => {
   );
 };
 
-const WorkoutLog = () => {
+const WorkoutLog = ({ editId, initialData }) => {
   const navigate = useNavigate();
-  const [exercises, setExercises] = useState([
-    { id: Date.now(), exerciseName: '', weightKg: '', reps: '', rpe: '', notes: '' },
-  ]);
-  const [workoutDate, setWorkoutDate] = useState(new Date());
-  const [notes, setNotes] = useState('');
+  const [exercises, setExercises] = useState(
+    initialData?.sets || [
+      { id: Date.now(), exerciseName: '', weightKg: '', reps: '', rpe: '', notes: '' },
+    ]
+  );
+  const [workoutDate, setWorkoutDate] = useState(initialData?.date || new Date());
+  const [notes, setNotes] = useState(initialData?.notes || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -196,8 +198,8 @@ const WorkoutLog = () => {
 
   const { control, handleSubmit, formState: { errors } } = useForm({
     defaultValues: {
-      workoutDate: new Date(),
-      notes: '',
+      workoutDate: initialData?.date || new Date(),
+      notes: initialData?.notes || '',
     },
   });
 
@@ -252,11 +254,15 @@ const WorkoutLog = () => {
         })),
       };
 
-      await axios.post('/api/workouts', workoutData);
+      if (editId) {
+        await axios.put(`/api/workouts/${editId}`, workoutData);
+      } else {
+        await axios.post('/api/workouts', workoutData);
+      }
       
       setSnackbar({
         open: true,
-        message: 'Workout saved successfully!',
+        message: editId ? 'Workout updated successfully!' : 'Workout saved successfully!',
         severity: 'success',
       });
       
@@ -265,9 +271,13 @@ const WorkoutLog = () => {
       setNotes('');
       setWorkoutDate(new Date());
       
-      // Redirect to dashboard after a short delay
+      // Redirect after a short delay
       setTimeout(() => {
-        navigate('/dashboard');
+        if (editId) {
+          navigate(`/workouts/${editId}`);
+        } else {
+          navigate('/dashboard');
+        }
       }, 1500);
       
     } catch (error) {
@@ -396,7 +406,7 @@ const WorkoutLog = () => {
       <Box mt={3} display="flex" justifyContent="flex-end" gap={2}>
         <Button
           variant="outlined"
-          onClick={() => navigate('/dashboard')}
+          onClick={() => navigate(editId ? `/workouts/${editId}` : '/dashboard')}
           disabled={isSubmitting}
         >
           Cancel
