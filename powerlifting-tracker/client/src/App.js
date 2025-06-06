@@ -16,6 +16,8 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import WorkoutLog from './pages/WorkoutLog';
 import WorkoutHistory from './pages/WorkoutHistory';
+import WorkoutDetails from './pages/WorkoutDetails';
+import WorkoutEdit from './pages/WorkoutEdit';
 import Progress from './pages/Progress';
 import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
@@ -85,8 +87,10 @@ const AppContent = () => {
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
-        <Route path="workout" element={<WorkoutLog />} />
-        <Route path="history" element={<WorkoutHistory />} />
+        <Route path="log-workout" element={<WorkoutLog />} />
+        <Route path="workouts" element={<WorkoutHistory />} />
+        <Route path="workouts/:id" element={<WorkoutDetails />} />
+        <Route path="workouts/:id/edit" element={<WorkoutEdit />} />
         <Route path="progress" element={<Progress />} />
         <Route path="profile" element={<Profile />} />
       </Route>
