@@ -22,7 +22,7 @@ model User {
 model Workout {
   id          String      @id @default(uuid())
   userId      String
-  user        User        @relation(fields: [userId], references: [id])
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   date        DateTime    @default(now())
   notes       String?
   createdAt   DateTime    @default(now())
@@ -33,7 +33,7 @@ model Workout {
 model WorkoutSet {
   id           String   @id @default(uuid())
   workoutId    String
-  workout      Workout  @relation(fields: [workoutId], references: [id])
+  workout      Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
   exerciseName String
   weightKg     Float
   reps         Int

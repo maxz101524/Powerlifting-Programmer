@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
+const { protect } = require('../middleware/auth');
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -103,6 +104,67 @@ router.get('/me', async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(401).json({ message: 'Token is not valid' });
+  }
+});
+
+// Update user profile
+router.put('/update', protect, async (req, res) => {
+  try {
+    const { name, email } = req.body;
+    const updates = {};
+    if (name) updates.name = name;
+    if (email) {
+      const existing = await prisma.user.findUnique({ where: { email } });
+      if (existing && existing.id !== req.user.id) {
+        return res.status(400).json({ message: 'Email already in use' });
+      }
+      updates.email = email;
+    }
+
+    const user = await prisma.user.update({
+      where: { id: req.user.id },
+      data: updates,
+      select: { id: true, name: true, email: true },
+    });
+
+    res.json(user);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update user password
+router.put('/update-password', protect, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+
+    if (!user || !(await bcrypt.compare(currentPassword, user.password))) {
+      return res.status(400).json({ message: 'Current password is incorrect' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { password: hashedPassword },
+    });
+
+    res.json({ message: 'Password updated' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete account
+router.delete('/delete-account', protect, async (req, res) => {
+  try {
+    await prisma.user.delete({ where: { id: req.user.id } });
+    res.json({ message: 'Account deleted' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
